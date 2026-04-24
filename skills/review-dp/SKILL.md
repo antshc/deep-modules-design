@@ -154,6 +154,9 @@ Produce the report with these sections:
 ### Summary
 [1–3 sentence verdict: deep/shallow, major issues]
 
+### What Works Well
+[Highlight genuinely deep modules, effective information hiding, clean abstractions, and well-designed interfaces. Call out design decisions that reduce system complexity.]
+
 ### Class Map
 | Class | Role | Public Members | Depth | Verdict |
 |-------|------|----------------|-------|---------|
