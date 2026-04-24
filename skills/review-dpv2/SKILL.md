@@ -1,5 +1,5 @@
 ---
-name: review-dp
+name: review-dpv2
 description: "Review C# classes or files for deep-module design quality. Use when: reviewing code for interface depth, information hiding, leakage, shallow modules, classitis, temporal decomposition, abstraction quality, or interface formal/informal contract quality."
 argument-hint: One or more file paths or classes to review for deep-module design principles
 ---
