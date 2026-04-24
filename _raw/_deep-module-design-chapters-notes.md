@@ -1,8 +1,10 @@
+# Chapter 4: Modules Should Be Deep
+
 a **Modules** can take many forms, such as classes, subsystems, or services. Higher-level subsystems and services are also modules; their interfaces may take different forms, such as kernel calls or HTTP requests. 
 a **module** is any unit of code that has an interface and an implementation. 
 Each class in an object-oriented programming language is a module.
 
-## What's in an interface?
+## 4.2 What's in an interface?
 
 An interface has **formal** and **informal** parts.
 
@@ -19,7 +21,7 @@ An interface has **formal** and **informal** parts.
 
 - **Information leakage** occurs when the same knowledge is used in multiple places, such as two different classes that both understand the format of a particular type of file.
 
-See: [C# example — ISessionStore](interface-example-csharp.md)
+See: [C# example — ISessionStore](interface-example.md)
 
 ## 4.3 Abstractions
 
@@ -33,10 +35,10 @@ The goal: minimize what the caller needs to know. Only expose details that truly
 
 > File system example: block allocation is hidden (unimportant); flush-to-storage rules are exposed (important for crash safety).
 
-See: [C# example — Good vs. Bad Abstraction](abstraction-example-csharp.md)
+See: [C# example — Good vs. Bad Abstraction](abstraction-example-csharp-example.md)
 
 ## Figure 4.1: Deep vs. Shallow Modules
-![alt text](image.png)
+![deep-and-shallow-modules](deep-and-shallow-modules.png)
 
 ## 4.4 Deep Modules
 
