@@ -1,3 +1,12 @@
+// Temporal Decomposition — Invoice Processing
+//
+// The invoice file format ("key = value" per line) is a single design decision.
+// It leaks independently into InvoiceLoader (which parses it) and InvoiceSaver
+// (which writes it back), while InvoiceTaxCalculator must know field names to
+// locate the right dictionary keys.  A format change forces edits in all three.
+
+// ── Bad design: three classes split by time order (load → calculate → save) ──
+
 class InvoiceLoader
 {
     public Dictionary<string, string> Load(string path)

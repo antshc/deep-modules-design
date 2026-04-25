@@ -1,3 +1,13 @@
+// Temporal Decomposition — Log Processing
+//
+// The log line format ("timestamp | level | message") is a single design
+// decision.  It leaks independently into LogLineParser (which splits it),
+// LogLevelFilter (which also splits it to inspect the level field), and
+// LogLineFormatter (which reassembles it).  A format change forces edits in
+// all three classes.
+
+// ── Bad design: three classes split by time order (parse → filter → format) ──
+
 class LogLineParser
 {
     public (string Timestamp, string Level, string Message) Parse(string line)
