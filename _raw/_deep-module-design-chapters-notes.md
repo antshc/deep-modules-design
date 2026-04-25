@@ -1,8 +1,10 @@
 # Chapter 4: Modules Should Be Deep
 
 a **Modules** can take many forms, such as classes, subsystems, or services. Higher-level subsystems and services are also modules; their interfaces may take different forms, such as kernel calls or HTTP requests. 
+
 a **module** is any unit of code that has an interface and an implementation. 
-Each class in an object-oriented programming language is a module.
+
+Each class in an object-oriented programming language is a module. A class without dependencies can be a deep or shallow module.
 
 ## 4.2 What's in an interface?
 
