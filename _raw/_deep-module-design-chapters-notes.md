@@ -173,3 +173,138 @@ Don't hide information that callers genuinely need. If a module's behavior depen
 - Modules that hide little are shallow (thin functionality or fat interface).
 - Design around **pieces of knowledge**, not execution order — avoid temporal decomposition.
 - Encapsulate each piece of knowledge in exactly one module.
+
+---
+
+# Chapter 6: General-Purpose Modules are Deeper
+
+> **Core thesis**: Over-specialization is the single greatest cause of software complexity. General-purpose code is simpler, cleaner, and easier to understand.
+
+## 6.1 Make Classes Somewhat General-Purpose
+
+The **sweet spot**: implement modules in a *somewhat* general-purpose fashion.
+- Functionality should reflect current needs.
+- Interface should be general enough to support multiple uses — not tied specifically to today's use case.
+- "Somewhat" matters: don't over-generalize to the point it's hard to use for current needs.
+
+Counter-intuitive finding: general-purpose interfaces are *simpler and deeper* than special-purpose ones, and result in less total code — even when the class is only ever used in one specific way.
+
+## 6.2–6.3 Text Editor Example
+
+See: [General-Purpose vs. Special-Purpose Text API](text-editor-general-purpose-api-example.md)
+
+**Key decision**: replace multiple special-purpose methods (one per UI action: `backspace`, `delete`, `deleteSelection`) with two general-purpose primitives (`insert(position, text)`, `delete(start, end)`) using a neutral `Position` type instead of UI-specific `Cursor`/`Selection`. This pushed all specialization upward into the UI layer and eliminated false abstractions.
+
+## 6.4 Generality Leads to Better Information Hiding
+
+- General-purpose API = clean separation between layers.
+- The text class no longer needs to know how `backspace` behaves — that knowledge belongs in the UI.
+- **False abstraction warning**: `backspace()` in the text class *looks* like it hides information, but the UI developer still needs to know which characters are deleted. Hiding it behind an interface just makes the information harder to reach.
+- Rule: when details are important to the caller, make them *explicit and obvious*, not buried behind an abstraction.
+
+## 6.5 Questions to Ask Yourself
+
+1. **What is the simplest interface that covers all my current needs?** Fewer methods with the same capability = more general-purpose.
+2. **In how many situations will this method be used?** A method designed for exactly one use is a red flag for over-specialization.
+3. **Is this API easy to use for my current needs?** If you need a lot of extra code just to use the class, you've gone too far in the general direction (e.g., single-character insert/delete would require loops everywhere and be inefficient).
+
+## 6.6 Push Specialization Up or Down
+
+Specialization cannot be fully eliminated, but it should be **cleanly separated** from general-purpose code.
+
+- **Push up**: specialized code lives only in top-level modules (e.g., UI code handles backspace behavior; text class stays generic).
+- **Push down**: when a general interface must support many device types, push device-specific code into drivers/subclasses. The OS core stays generic; device drivers hold all specialization. This also makes adding new devices cheap: implement the interface, done.
+
+## 6.7 Example: Editor Undo Mechanism
+
+See: [Editor Undo Mechanism — General vs. Special-Purpose](editor-undo-mechanism-example.md)
+
+**Key decision**: extract the general-purpose history management into a standalone `History` class with a `History.Action` interface. Push action-specific undo/redo logic down into `Action` implementations (owned by whatever module understands each operation); push grouping policy up into high-level UI code via `addFence()`. Once that separation was made, the rest fell out naturally — no callbacks between text class and UI, and adding a new undoable entity requires only a new `Action` class with no changes to `History`.
+
+## 6.8 Eliminate Special Cases in Code
+
+See: [Eliminating Special Cases — Text Selection](eliminate-special-cases-example.md)
+
+**Key decision**: represent "no selection" as an empty range (start == end) instead of a boolean `exists` flag. Design normal-case operations (`delete`, `extract`) to handle an empty range correctly by producing a no-op — the edge case disappears entirely, and every guard scattered across the codebase goes with it.
+
+> **Principle**: wherever a "nothing" state exists, ask whether an empty/zero value of the normal type can represent it instead of a separate flag. Design the normal-case code to handle that value correctly, and the special case ceases to exist.
+
+> See Chapter 10 for reducing special cases in exception handling.
+
+## 6.9 Conclusion
+
+- Unnecessary specialization — in class/method design or in code (special-case if-chains) — is a primary driver of complexity.
+- Reducing specialization produces: deeper classes, better information hiding, simpler and more obvious code.
+- Separate what is unavoidably special-purpose from what can be general-purpose.
+
+---
+
+# Chapter 7: Different Layer, Different Abstraction
+
+In a well-designed system, each layer provides a **different abstraction** from the layers above and below it. If adjacent layers have similar abstractions, this is a red flag suggesting a problem with the class decomposition.
+
+**Examples of proper layering:**
+- **File system**: file abstraction (variable-length byte array) → in-memory block cache (fixed-size blocks) → device drivers (block transfer to/from storage).
+- **TCP**: reliable byte stream → best-effort bounded-size packets.
+
+## 7.1 Pass-Through Methods
+
+A **pass-through method** does little except invoke another method whose signature is similar or identical.
+
+- Makes classes shallower: increases interface complexity without increasing total functionality.
+- Creates coupling: signature changes in the lower class force matching changes in the upper class.
+- Signals confused division of responsibility — the interface to a piece of functionality should live in the same class that implements it.
+
+> **Red Flag — Pass-Through Method**: a method that does nothing except pass its arguments to another method, usually with the same API. This typically indicates there is not a clean division of responsibility between the classes.
+
+> **Key Decision — Pass-Through Methods**: When a class forwards most calls to another class with the same signature, the division of responsibility is wrong. Fix by exposing the lower class directly, redistributing functionality, or merging classes — whichever produces coherent, non-overlapping abstractions.
+
+See: [Pass-through methods — TextDocument example](./pass-through-methods-example.md)
+
+## 7.2 When Is Interface Duplication OK?
+
+Methods with the same signature are fine when each contributes **significant, distinct functionality**.
+
+- **Dispatcher**: uses arguments to select one of several methods to invoke; passes most or all arguments to the chosen method. The selection logic itself is the valuable functionality. **Example**: a web server dispatches incoming HTTP requests by URL to different handlers (file serving, PHP, JavaScript).
+- **Multiple implementations of the same interface**: e.g., disk drivers in an OS — each supports a different device but shares a common interface. Reduces cognitive load; once you learn one, you know them all. These methods are usually in the same layer and don't invoke each other.
+
+## 7.3 Decorators
+
+A **decorator** (wrapper) takes an existing object and extends its functionality, providing a similar or identical API. Methods invoke the methods of the underlying object.
+
+- **Example**: Java's `BufferedInputStream` decorates `InputStream` with buffering; `ScrollableWindow` decorates `Window` with scrollbars.
+- Decorator classes tend to be **shallow**: large amount of boilerplate for a small amount of new functionality, often containing many pass-through methods.
+- Overuse leads to an explosion of shallow classes (Java I/O is the textbook example).
+
+**Before creating a decorator, consider:**
+1. Add the functionality directly to the underlying class — especially if it is general-purpose, logically related, or used by most callers (e.g., buffering belongs inside `InputStream`).
+2. Merge the functionality with the use case rather than creating a separate class.
+3. Merge with an existing decorator → one deeper decorator instead of multiple shallow ones.
+4. Implement as a stand-alone class independent of the base class (e.g., scrollbars independent of the window).
+
+> Wrappers make sense when translating between an external class's interface and a different required interface — but this situation is rare.
+
+## 7.4 Interface vs. Implementation
+
+The interface of a class should normally be **different from its implementation** — internal representations should differ from interface abstractions. If they are similar, the class probably isn't deep.
+
+- **Example — Text editor**: teams that stored text as lines *and* exposed a line-oriented API (`getLine`, `putLine`) produced shallow classes. Higher-level UI code had to split and join lines manually — nontrivial, duplicated logic scattered across the codebase.
+- A **character-oriented interface** (`insert(position, text)`, `delete(start, end)`) encapsulates line splitting/joining inside the text class, making it deeper and simplifying all callers. The API is quite different from the line-oriented storage — the difference represents valuable functionality.
+
+## 7.5 Pass-Through Variables
+
+A **pass-through variable** is passed down through a long chain of methods but only used by a low-level method deep in the chain.
+
+- Forces all intermediate methods to be aware of the variable, even though they have no use for it.
+- Adding a new pass-through variable requires modifying many interfaces and methods.
+
+**Elimination strategies:**
+1. **Shared object**: if a shared object already exists between the top and bottom methods, store the information there (but the object itself may be a pass-through variable).
+2. **Global variable**: avoids method-to-method passing but prevents creating multiple independent instances in the same process.
+3. **Context object** (preferred): a single object that stores all application global state (configuration, shared subsystems, performance counters). One context per system instance, supporting multiple instances in one process.
+
+## 7.6 Conclusion
+
+- Each layer in a system should provide a different abstraction; adjacent layers with similar abstractions signal decomposition problems.
+- Pass-through methods, decorators, and pass-through variables are symptoms of insufficient abstraction differentiation.
+- Fix by exposing, redistributing, merging, or introducing a context object — whichever gives each layer a coherent, distinct abstraction.
